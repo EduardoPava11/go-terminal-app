@@ -1,0 +1,23 @@
+module UI.Buttons (drawButtons) where
+
+import Brick
+import qualified Brick.Widgets.Border as B
+import Brick.Widgets.Core
+import qualified Brick.Widgets.Border.Style as BS
+import qualified Data.Text as T  -- Add this import
+
+import Game.Types
+import UI.Theme
+
+drawButtons :: UISelection -> Widget Name
+drawButtons sel =
+  let passAttr = if sel == SelectPass then selectedAttr else normalAttr
+      resignAttr = if sel == SelectResign then selectedAttr else normalAttr
+  in
+    withBorderStyle BS.unicodeBold $
+    B.borderWithLabel (str " Actions ") $
+    padLeftRight 2 $
+    hBox [ clickable PassButton $ withAttr passAttr $ str "[ Pass ]"
+         , str "     "  -- Changed txt to str
+         , clickable ResignButton $ withAttr resignAttr $ str "[ Resign ]"
+         ]

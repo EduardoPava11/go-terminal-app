@@ -1,0 +1,30 @@
+# Haskell build artifacts
+.stack-work/
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+*.p_hi
+*.p_o
+*.chi
+*.chs.h
+*.prof
+*.aux
+*.hp
+*.eventlog
+.hspec-failures
+.HTF/
+dist/
+dist-*/
+cabal-dev/
+.cabal-sandbox/
+cabal.sandbox.config
+cabal.project.local
+.ghc.environment.*
+
+# Editor/IDE specific files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
