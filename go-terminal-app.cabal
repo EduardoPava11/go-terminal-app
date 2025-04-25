@@ -1,40 +1,122 @@
-cabal-version:       2.2
-name:                go-terminal-app
-version:             0.1.0.0
-synopsis:            Terminal-based Go board game
-description:         Play the game of Go in your terminal with this Brick-based UI
-homepage:            https://github.com/yourusername/go-terminal-app
-license:             BSD-3-Clause
-license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2025 Author name here
-category:            Game
-build-type:          Simple
-extra-source-files:  README.md
+cabal-version: 2.2
+name: go-terminal-app
+version: 0.1.0.0
+synopsis: Terminal-based Go board game
+description: Play the game of Go in your terminal with this Brick-based UI
+license: BSD-3-Clause
+license-file: LICENSE
+author: Your Name
+maintainer: your.email@example.com
+copyright: 2023 Your Name
+category: Game
+build-type: Simple
+
+library
+  exposed-modules:
+    UI.Board
+    UI.Buttons
+    UI.Event
+    UI.Overlay
+    UI.Theme
+    UI.UI
+    UI.MainMenu
+    UI.ConfigUI
+  other-modules:
+    Game.Types
+    Game.BFS
+    Game.Engine
+    Network.Bootstrap
+    Network.ByteStringJSON
+    Network.Config
+    Network.Events
+    Network.Gossip
+    Network.Gossip.Plumtree
+    Network.GameState
+    Network.Membership
+    Network.Membership.HyParView
+    Network.Messages
+    Network.Node
+    Network.Thread
+    Network.Transport
+  hs-source-dirs:
+    src
+  build-depends:
+    base >= 4.18,
+    distributed-process ^>=0.7.8,
+    network-transport-tcp ^>=0.5.1,
+    distributed-process-simplelocalnet ^>=0.3,
+    brick >= 0.70,
+    vector,
+    containers,
+    vty >= 6.1,
+    text,
+    data-clist,
+    text-zipper,
+    word-wrap,
+    config-ini >= 0.2.7.0 && < 0.3,
+    microlens,
+    microlens-th,
+    stm,
+    hashable,
+    unordered-containers,
+    bytestring,
+    aeson >= 2.0,
+    network,
+    uuid,
+    base64-bytestring,
+    network-info,
+    mtl
+  default-language: Haskell2010
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns
+  default-extensions:
+    DeriveGeneric
+    OverloadedStrings
+    ScopedTypeVariables
+    LambdaCase
+    GeneralizedNewtypeDeriving
 
 executable go-terminal-app
-  main-is:             Main.hs
-  hs-source-dirs:      app, src
-  default-language:    Haskell2010
-  other-modules:       Game.Types
-                     , Game.Engine
-                     , Game.BFS
-                     , UI.UI
-                     , UI.Board
-                     , UI.Theme
-                     , UI.Buttons
-                     , UI.Overlay
-                     , UI.Event
-  build-depends:       base >= 4.7 && < 5
-                     , brick >= 0.70 && < 0.71
-                     , vector
-                     , containers
-                     , vty >= 5.38 && < 5.39
-                     , text
-                     , data-clist
-                     , text-zipper
-                     , word-wrap
-                     , config-ini >= 0.2.7.0 && < 0.3
-                     , microlens
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  main-is: Main.hs
+  hs-source-dirs: app
+  default-language: Haskell2010
+  build-depends:
+    base >= 4.18,
+    distributed-process ^>=0.7.8,
+    network-transport-tcp ^>=0.5.1,
+    distributed-process-simplelocalnet ^>=0.3,
+    brick >= 0.70,
+    vector,
+    containers,
+    vty >= 6.1,
+    text,
+    microlens,
+    stm,
+    go-terminal-app,
+    uuid,
+    mtl
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
+
+test-suite go-terminal-app-test
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Spec.hs
+  other-modules:
+    Game.EngineSpec
+    Network.ConfigSpec
+    UI.ThemeSpec
+    UI.BoardSpec
+    Network.TransportSpec
+    Mocks
+  build-depends:
+    base >= 4.18,
+    go-terminal-app,
+    hspec >= 2.0.0,
+    hspec-discover,
+    text,
+    vector,
+    containers,
+    brick,
+    bytestring,
+    uuid
+  default-language: Haskell2010
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N

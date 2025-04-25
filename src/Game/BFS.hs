@@ -34,7 +34,7 @@ bfs b color _ visited liberties queue
           
           -- Update visited set
           newVisited = S.insert idx visited
-      in bfs b color undefined newVisited (S.union liberties newLiberties) newQueue
+      in bfs b color idx newVisited (S.union liberties newLiberties) newQueue  -- Changed 'undefined' to 'idx'
 
 -- Calculate board size from board vector length (assuming square)
 boardSize' :: Board -> Int

@@ -23,6 +23,8 @@ buildInitialState size = UIState
   { gameState = initialGameState size
   , selection = NoSelection
   , cursor = (0, 0)  -- Initialize cursor at top-left
+  , networkStatus = mkDisconnected  -- Use the smart constructor
+  , connectionInfo = Nothing
   }
 
 -- Main drawing function
