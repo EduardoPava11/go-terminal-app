@@ -1,22 +1,19 @@
-module UI.Board where
+resolver: nightly-2023-09-19 # GHC 9.6.2 with base 4.18.0.0
 
-import qualified Brick as B
-import           Brick.Widgets.Border (border)
-import qualified Data.Map.Strict as M
-import           Data.Maybe (fromMaybe)
-import           Game.Types (GameState(..), Stone(..))
+packages:
+- .
 
+# You might need to add extra-deps here if stack build fails
+# due to dependencies not being in the resolver.
+extra-deps:
+  # Terminal UI dependencies
+  - brick-2.3
+  - vty-6.1@sha256:260d91655163003e3e788d08af10b573644754ddeb8b01f530596aec2ab72e0b,3557
+  - vty-crossplatform-0.4.0.0@sha256:50593f91ad16777d921138475a8d2784d538fd206addd30664c620278d6c8544,3172
+  - vty-unix-0.2.0.0@sha256:2af3d0bdae3c4b7b7e567ee374efe32c7439fabdf9096465ce011a6c6736e9ae,2932
 
--- | Render a Go board based on the current GameState.
-drawBoard :: GameState -> B.Widget n
-drawBoard gs@GameState{..} =
-    border
-  $ B.vBox [ B.hBox [ drawCell (x, y)
-                    | x <- [0 .. boardSize - 1] ]
-           | y <- [0 .. boardSize - 1] ]
-  where
-    drawCell coord =
-      case M.lookup coord stones of
-        Nothing          -> B.str "· "
-        Just BlackStone  -> B.withAttr "blackStone" $ B.str "● "
-        Just WhiteStone  -> B.withAttr "whiteStone" $ B.str "○ "
+# Suppress warning about Nix being on PATH
+notify-if-nix-on-path: false
+
+# Uncomment to use newer packages than in the resolver
+# allow-newer: true

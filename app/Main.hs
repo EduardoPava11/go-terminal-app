@@ -1,50 +1,71 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import Control.Monad          (forever, void)
-import Control.Concurrent     (threadDelay)
-import Control.Concurrent.STM (atomically)
-import Control.Distributed.Process
-import Control.Distributed.Process.Node (LocalNode, localNodeId)
-import qualified Network.Node as N
-import qualified Network.Membership.HyParView as HP
-import qualified Data.Set as S
+import Network.TCP (runServer, connectPeer, recvMsg)
+import Network.SocketSimple (Socket)
+import qualified Network.WireMsg as WM
+import Game.Types
+import qualified Game.Engine as Engine    
+import UI.UI (uiLoop)
+import Data.IORef
+import Control.Concurrent (forkIO)
+import Control.Monad (forever)
+import Control.Exception (try, SomeException)
+import App.CLI
+import Network.Config (defaultPort)
+import System.Exit (exitFailure)
+import Text.Printf (printf)
 
-------------------------------------------------------------------------
--- 1.  Very small node program used just for Week-2 testing
-------------------------------------------------------------------------
-nodeProgram :: LocalNode -> Process ()
-nodeProgram ln = do
-  self <- getSelfPid
-  liftIO $ putStrLn $ "Node up. PID = " ++ show self
-  
-  -- Wait 3 s to give HyParView time to fill activeView
-  liftIO (threadDelay 3_000_000)
-  say "Attempting to pick first active peer…"
-  hpPid <- expectTimeout 0 :: Process (Maybe ProcessId)  -- not used yet
-
-  -- Use a synchronous STM read (simple for demo)
-  hpState <- HP.stateFromPid hpPid
-  act <- liftIO . atomically $ HP.viewActive hpState
-  case S.toList act of
-    []      -> say "No peers yet – waiting…"
-    (p:_)   -> pingPeer p
-    
-  -- Keep node alive
-  forever $ liftIO $ threadDelay 10_000_000
-
-pingPeer :: ProcessId -> Process ()
-pingPeer peer = do
-  say $ "Pinging " ++ show peer
-  send peer ("ping" :: String)
-  receiveWait
-    [ matchIf (== ("pong" :: String)) $ \_ ->
-        say "Received pong – success!" ]
-
-------------------------------------------------------------------------
--- 2.  Entry point
-------------------------------------------------------------------------
 main :: IO ()
 main = do
-  -- pass different ports when you run the second machine
-  N.withNode "0.0.0.0" "10501" [] nodeProgram
+  cmdLine <- parseCmdLine
+  let boardSize = boardSz cmdLine
+      komiValue = uiKomi cmdLine
+
+  printf "Go Terminal App with %s\n" (prettyCmdLine cmdLine)
+  
+  case mode cmdLine of
+    Listen port -> do
+      -- In Listen mode, start a server and wait for a connection
+      printf "Waiting for connections on port %d...\n" port
+      runServer "0.0.0.0" (show port) $ \sock -> do
+        printf "Peer connected! You play as %s\n" (show White)
+        let initialGs = Engine.initialGameState boardSize
+            updatedGs = initialGs { gameConfig = GameConfig boardSize komiValue }
+        gsRef <- newIORef updatedGs
+        
+        _ <- forkIO (rxLoop sock gsRef)
+        uiLoop sock gsRef
+    
+    Dial host port -> do
+      -- In Dial mode, connect to the remote host
+      printf "Connecting to %s:%d...\n" host port
+      dialResult <- try (connectPeer host (show port))
+      case dialResult of
+        Left (e :: SomeException) -> do
+          printf "Connection failed: %s\n" (show e)
+          exitFailure
+        Right sock -> do
+          printf "Connected to %s:%d! You play as %s\n" host port (show Black)
+          let initialGs = Engine.initialGameState boardSize
+              updatedGs = initialGs { gameConfig = GameConfig boardSize komiValue }
+          gsRef <- newIORef updatedGs
+          
+          _ <- forkIO (rxLoop sock gsRef)
+          uiLoop sock gsRef
+
+-- | Continuously receive and process messages from the socket
+rxLoop :: Socket -> IORef GameState -> IO ()
+rxLoop sock ref = forever $ do
+  result <- recvMsg sock
+  case result of
+    Left err -> putStrLn $ "Network error: " ++ err
+    Right msg -> modifyIORef' ref (applyNet msg)
+  where
+    applyNet (WM.MovePlayed _ r c _) gs = 
+      case Engine.makeMove gs (r, c) of
+        Left _ -> gs -- Keep original state on error
+        Right newGs -> newGs
+    applyNet (WM.PassPlayed _ _) gs = Engine.passTurn gs
+    applyNet (WM.Resign _) gs = gs -- Just keep original state for now

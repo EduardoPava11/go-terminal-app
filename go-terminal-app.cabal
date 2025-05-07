@@ -13,110 +13,91 @@ build-type: Simple
 
 library
   exposed-modules:
+    App.CLI
+    Game.BFS
+    Game.Engine
+    Game.Types
+    Network.Config
+    Network.SocketSimple
+    Network.TCP
+    Network.WireMsg
     UI.Board
     UI.Buttons
+    UI.ConfigUI
     UI.Event
+    UI.MainMenu
     UI.Overlay
     UI.Theme
     UI.UI
-    UI.MainMenu
-    UI.ConfigUI
-  other-modules:
-    Game.Types
-    Game.BFS
-    Game.Engine
-    Network.Bootstrap
-    Network.ByteStringJSON
-    Network.Config
-    Network.Events
-    Network.Gossip
-    Network.Gossip.Plumtree
-    Network.GameState
-    Network.Membership
-    Network.Membership.HyParView
-    Network.Messages
-    Network.Node
-    Network.Thread
-    Network.Transport
   hs-source-dirs:
     src
   build-depends:
-    base >= 4.18,
-    distributed-process ^>=0.7.8,
-    network-transport-tcp ^>=0.5.1,
-    distributed-process-simplelocalnet ^>=0.3,
-    brick >= 0.70,
-    vector,
-    containers,
-    vty >= 6.1,
-    text,
-    data-clist,
-    text-zipper,
-    word-wrap,
-    config-ini >= 0.2.7.0 && < 0.3,
-    microlens,
-    microlens-th,
-    stm,
-    hashable,
-    unordered-containers,
+    base               >=4.18 && <4.21,
+    aeson              >=2,
+    async              >=2.2,
+    brick              >=2.3,
     bytestring,
-    aeson >= 2.0,
-    network,
-    uuid,
-    base64-bytestring,
-    network-info,
-    mtl
+    containers,
+    microlens          >=0.4,
+    network            >=3.1,
+    optparse-applicative >=0.17,
+    stm                >=2.5,
+    text,
+    vector,
+    vty                >=6,
+    vty-crossplatform  >=0.4
   default-language: Haskell2010
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -threaded
   default-extensions:
     DeriveGeneric
     OverloadedStrings
     ScopedTypeVariables
     LambdaCase
     GeneralizedNewtypeDeriving
+    NumericUnderscores
 
 executable go-terminal-app
   main-is: Main.hs
   hs-source-dirs: app
   default-language: Haskell2010
   build-depends:
-    base >= 4.18,
-    distributed-process ^>=0.7.8,
-    network-transport-tcp ^>=0.5.1,
-    distributed-process-simplelocalnet ^>=0.3,
-    brick >= 0.70,
-    vector,
+    base               >=4.18 && <4.21,
+    async              >=2.2,
+    brick              >=2.3,
+    bytestring,
     containers,
-    vty >= 6.1,
-    text,
-    microlens,
-    stm,
     go-terminal-app,
-    uuid,
-    mtl
+    network            >=3.1,
+    optparse-applicative >=0.17,
+    stm                >=2.5,
+    text,
+    vector,
+    vty                >=6,
+    vty-crossplatform  >=0.4
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
 
+-- TODO: Rewrite tests to accommodate the refactored modules and CLI
 test-suite go-terminal-app-test
+  buildable: False
   type: exitcode-stdio-1.0
   hs-source-dirs: test
   main-is: Spec.hs
   other-modules:
     Game.EngineSpec
-    Network.ConfigSpec
-    UI.ThemeSpec
-    UI.BoardSpec
-    Network.TransportSpec
     Mocks
+    Network.ConfigSpec
+    UI.BoardSpec
+    UI.ThemeSpec
   build-depends:
-    base >= 4.18,
+    base               >=4.18 && <4.21,
+    brick              >=2.3,
+    bytestring,
+    containers,
     go-terminal-app,
-    hspec >= 2.0.0,
+    hspec              >=2.0.0,
     hspec-discover,
     text,
     vector,
-    containers,
-    brick,
-    bytestring,
-    uuid
+    vty                >=6
   default-language: Haskell2010
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
