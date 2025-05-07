@@ -1,0 +1,174 @@
+
+Warning: nix (Nix) 2.25.3 is on the PATH (at /nix/var/nix/profiles/default/bin/nix) but Stack's Nix
+         integration is disabled. To mute this message in future, set notify-if-nix-on-path: false
+         in Stack's configuration.
+         
+go-terminal-app> build (lib + exe + test) with ghc-9.6.2
+Preprocessing library for go-terminal-app-0.1.0.0..
+Building library for go-terminal-app-0.1.0.0..
+ld: warning: -single_module is obsolete
+ld: warning: reexported library with install name '/opt/homebrew/opt/llvm@12/lib/libunwind.1.dylib' found at '/opt/homebrew/Cellar/llvm@12/12.0.1_1/lib/libunwind.1.0.dylib' couldn't be matched with any parent library and will be linked directly
+Preprocessing executable 'go-terminal-app' for go-terminal-app-0.1.0.0..
+Building executable 'go-terminal-app' for go-terminal-app-0.1.0.0..
+Preprocessing test suite 'go-terminal-app-test' for go-terminal-app-0.1.0.0..
+Building test suite 'go-terminal-app-test' for go-terminal-app-0.1.0.0..
+
+<no location info>: warning: [GHC-32850] [-Wmissing-home-modules]
+    These modules are needed for compilation but not listed in your .cabal file's other-modules for ‘main’ :
+        Network.TransportSpec
+[1 of 7] Compiling Game.EngineSpec
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:17:28: error: [GHC-88464]
+    Variable not in scope:
+      applyMove :: Move -> GameState -> Either a3 b
+   |
+17 |           Right newState = applyMove Pass state
+   |                            ^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:22:26: error: [GHC-88464]
+    Variable not in scope:
+      applyMove :: Move -> GameState -> Either a4 b
+   |
+22 |           Right state2 = applyMove Pass state
+   |                          ^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:23:26: error: [GHC-88464]
+    Variable not in scope: applyMove :: Move -> t0 -> Either a5 b
+   |
+23 |           Right state3 = applyMove Pass state2
+   |                          ^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:30:20: error: [GHC-88464]
+    Variable not in scope: applyMove :: t3 -> GameState -> t
+   |
+30 |           result = applyMove (Place 100 100) state
+   |                    ^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:30:31: error: [GHC-88464]
+    Data constructor not in scope: Place :: t1 -> t2 -> t3
+   |
+30 |           result = applyMove (Place 100 100) state
+   |                               ^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:35:26: error: [GHC-88464]
+    Variable not in scope: applyMove :: t6 -> GameState -> Either a6 b
+   |
+35 |           Right state2 = applyMove (Place 0 0) state
+   |                          ^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:35:37: error: [GHC-88464]
+    Data constructor not in scope: Place :: t4 -> t5 -> t6
+   |
+35 |           Right state2 = applyMove (Place 0 0) state
+   |                                     ^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:36:20: error: [GHC-88464]
+    Variable not in scope: applyMove :: t9 -> t10 -> t
+   |
+36 |           result = applyMove (Place 0 0) state2
+   |                    ^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:36:31: error: [GHC-88464]
+    Data constructor not in scope: Place :: t7 -> t8 -> t9
+   |
+36 |           result = applyMove (Place 0 0) state2
+   |                               ^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:41:26: error: [GHC-88464]
+    Variable not in scope: applyMove :: t13 -> GameState -> Either a7 b
+   |
+41 |           Right state2 = applyMove (Place 4 4) state  -- Place stone in center
+   |                          ^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:41:37: error: [GHC-88464]
+    Data constructor not in scope: Place :: t11 -> t12 -> t13
+   |
+41 |           Right state2 = applyMove (Place 4 4) state  -- Place stone in center
+   |                                     ^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Game/EngineSpec.hs:49:20: error: [GHC-88464]
+    Variable not in scope: applyMove :: Move -> GameState -> t
+   |
+49 |           result = applyMove Resign state
+   |                    ^^^^^^^^^
+[2 of 7] Compiling Mocks
+
+/Users/daniel/Documents/go-terminal-app/test/Mocks.hs:10:1: error:
+    Could not find module ‘Network.Node’
+    Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+   |
+10 | import Network.Node (Node(..))
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Mocks.hs:13:1: error:
+    Could not find module ‘Network.GameState’
+    Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+   |
+13 | import Network.GameState (NetworkGame(..))
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[4 of 7] Compiling Network.TransportSpec
+
+/Users/daniel/Documents/go-terminal-app/test/Network/TransportSpec.hs:5:1: error:
+    Could not find module ‘Network.Transport’
+    Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+  |
+5 | import Network.Transport
+  | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Network/TransportSpec.hs:6:1: error:
+    Could not find module ‘Network.Node’
+    Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+  |
+6 | import Network.Node (Node(..))
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Network/TransportSpec.hs:9:1: error:
+    Could not find module ‘Network.Gossip.Plumtree’
+    Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+  |
+9 | import qualified Network.Gossip.Plumtree as PT  -- Add this import
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/Network/TransportSpec.hs:10:1: error:
+    Could not find module ‘Network.Membership.HyParView’
+    Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+   |
+10 | import qualified Network.Membership.HyParView as HV  -- Add this import
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[6 of 7] Compiling UI.ThemeSpec
+
+/Users/daniel/Documents/go-terminal-app/test/UI/ThemeSpec.hs:10:31: error: [GHC-88464]
+    Variable not in scope: attrName :: String -> Brick.AttrMap.AttrName
+   |
+10 |       selectedAttr `shouldBe` attrName "selected"
+   |                               ^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/UI/ThemeSpec.hs:11:29: error: [GHC-88464]
+    Variable not in scope: attrName :: String -> Brick.AttrMap.AttrName
+   |
+11 |       normalAttr `shouldBe` attrName "normal"
+   |                             ^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/UI/ThemeSpec.hs:12:29: error: [GHC-88464]
+    Variable not in scope: attrName :: String -> Brick.AttrMap.AttrName
+   |
+12 |       cursorAttr `shouldBe` attrName "cursor"
+   |                             ^^^^^^^^
+
+/Users/daniel/Documents/go-terminal-app/test/UI/ThemeSpec.hs:15:19: error: [GHC-88464]
+    Variable not in scope:
+      attrMapAttrNames :: Brick.AttrMap.AttrMap -> t
+   |
+15 |       let attrs = attrMapAttrNames theMap
+   |                   ^^^^^^^^^^^^^^^^
+
+Error: [S-7282]
+       Stack failed to execute the build plan.
+       
+       While executing the build plan, Stack encountered the error:
+       
+       [S-7011]
+       While building package go-terminal-app-0.1.0.0 (scroll up to its section to see the error)
+       using:
+       /Users/daniel/.stack/setup-exe-cache/aarch64-osx/Cabal-simple_DY68M0FN_3.10.1.0_ghc-9.6.2 --verbose=1 --builddir=.stack-work/dist/aarch64-osx/ghc-9.6.2 build lib:go-terminal-app exe:go-terminal-app test:go-terminal-app-test --ghc-options ""
+       Process exited with code: ExitFailure 1 

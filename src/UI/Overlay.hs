@@ -1,70 +1,110 @@
-module UI.Overlay (drawStatus) where
+{-# LANGUAGE OverloadedStrings #-}
+module UI.Overlay
+  ( drawOverlay
+  , drawStatus
+  ) where
 
 import Brick
-import qualified Brick.Widgets.Border as B
-import Brick.Widgets.Core
-import qualified Brick.Widgets.Border.Style as BS
-import Data.Char (chr)
-import UI.Theme
+import Brick.Widgets.Border as B
+import Brick.Widgets.Center as C
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Game.Types
+import UI.Theme
 
+-- | Draw an overlay with connection status and error messages
+drawOverlay :: UIState -> Widget Name
+drawOverlay us = 
+  case (networkStatus us, errorMessage us) of
+    (_, Just err) -> 
+      -- Draw error overlay
+      drawErrorOverlay err
+    (Connecting addr, _) ->
+      -- Draw connecting overlay
+      drawConnectingOverlay addr
+    (CreatingGame addr, _) -> 
+      -- Draw creating game overlay
+      drawCreatingGameOverlay addr
+    (JoiningGame code addr, _) ->
+      -- Draw joining game overlay
+      drawJoiningGameOverlay code addr
+    _ -> emptyWidget
+
+-- | Draw status bar with game info
 drawStatus :: UIState -> Widget Name
 drawStatus us =
   let gs = gameState us
-      (curR, curC) = cursor us
-      
-      -- Existing status info
-      playerStr = case currentPlayer gs of
-                    Black -> "Black's turn"
-                    White -> "White's turn"
-                    _     -> "Game over"
-
-      selStr = case selection us of
-                 NoSelection     -> "No selection"
-                 SelectCoord r c -> "Selected: " ++ [chr (c + 65)] ++ show (r + 1)
-                 SelectPass      -> "Selected: Pass"
-                 SelectResign    -> "Selected: Resign"
-
-      cursorStr = "Cursor: " ++ [chr (curC + 65)] ++ show (curR + 1)
-
-      captureStr = "Black captures: " ++ show (capturedWhite gs)
-                ++ " | White captures: " ++ show (capturedBlack gs)
-                
-      -- Network status display using the updated Address type
-      netStatusStr = case networkStatus us of
-                      Disconnected -> "Network: Disconnected"
-                      Connecting addr -> "Network: Connecting to " ++ getAddress addr
-                      Connected addr peers -> "Network: Connected to " ++ getAddress addr ++ 
-                                             " (" ++ show peers ++ " peers)"
-                      ConnectionError err -> "Network Error: " ++ err
-                      CreatingGame addr -> "Hosting game at " ++ getAddress addr ++ " (waiting for opponent)"
-                      JoiningGame gameId addr -> "Joining game " ++ gameId ++ " at " ++ getAddress addr
-                      
-      -- Connection info display
-      connInfoStr = case connectionInfo us of
-                     Just info -> "Your connection: " ++ info ++ " (share this code)"
-                     Nothing -> ""
-      
-      -- Style network status based on its value
-      netStatusWidget = case networkStatus us of
-                         ConnectionError _ -> withAttr networkErrorAttr $ str netStatusStr
-                         Connected _ _ -> withAttr networkConnectedAttr $ str netStatusStr 
-                         CreatingGame _ -> withAttr networkCreatingAttr $ str netStatusStr
-                         _ -> withAttr networkStatusAttr $ str netStatusStr
-                         
-      -- Only show connection info if available
-      connInfoWidget = if null connInfoStr 
-                      then emptyWidget
-                      else withAttr connectionInfoAttr $ str connInfoStr
+      net = networkStatus us
   in
-    withBorderStyle BS.unicodeBold $
-    B.borderWithLabel (str " Status ") $
-    padLeftRight 1 $
-    vBox [ str playerStr
-         , str selStr
-         , str cursorStr
-         , str captureStr
-         , netStatusWidget
-         , connInfoWidget
-         ]
+  B.hBorderWithLabel (str " Status ") <=>
+  hBox 
+    [ padRight (Pad 2) $ str $ "Turn: " ++ show (currentPlayer gs)
+    , padRight (Pad 2) $ str $ "Move: " ++ show (moveNumber gs)
+    , padRight (Pad 2) $ str $ "Captures - B: " ++ show (capturedBlack gs) ++ 
+                              " W: " ++ show (capturedWhite gs)
+    , padRight (Pad 2) $ withAttr networkAttr $ str $ showNetworkStatus net
+    ]
+
+-- | Show network status as string
+showNetworkStatus :: NetworkStatus -> String
+showNetworkStatus Disconnected = "Disconnected"
+showNetworkStatus (Connecting (Address addr)) = "Connecting to " ++ addr
+showNetworkStatus (Connected (Address addr) n) = "Connected to " ++ addr ++ " (" ++ show n ++ " peers)"
+showNetworkStatus (ConnectionError err) = "Connection Error: " ++ err
+showNetworkStatus (CreatingGame (Address addr)) = "Creating game on " ++ addr
+showNetworkStatus (JoiningGame code (Address addr)) = "Joining game " ++ code ++ " on " ++ addr
+
+-- | Draw error overlay
+drawErrorOverlay :: Text -> Widget Name
+drawErrorOverlay err =
+  C.center $
+  withAttr errorAttr $
+  B.border $
+  padAll 2 $
+  vBox [ str "Error"
+       , str " "
+       , str (T.unpack err)
+       , str " "
+       , str "Press Esc to continue"
+       ]
+
+-- | Draw connecting overlay
+drawConnectingOverlay :: Address -> Widget Name
+drawConnectingOverlay (Address addr) =
+  C.center $
+  B.border $
+  padAll 2 $
+  vBox [ str "Connecting"
+       , str " "
+       , str $ "Connecting to " ++ addr
+       , str " "
+       , str "Please wait..."
+       ]
+
+-- | Draw creating game overlay
+drawCreatingGameOverlay :: Address -> Widget Name
+drawCreatingGameOverlay (Address addr) =
+  C.center $
+  B.border $
+  padAll 2 $
+  vBox [ str "Creating Game"
+       , str " "
+       , str $ "Creating game on " ++ addr
+       , str " "
+       , str "Please wait..."
+       ]
+
+-- | Draw joining game overlay
+drawJoiningGameOverlay :: String -> Address -> Widget Name
+drawJoiningGameOverlay code (Address addr) =
+  C.center $
+  B.border $
+  padAll 2 $
+  vBox [ str "Joining Game"
+       , str " "
+       , str $ "Joining game " ++ code
+       , str $ "on " ++ addr
+       , str " "
+       , str "Please wait..."
+       ]

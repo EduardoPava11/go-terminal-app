@@ -1,12 +1,13 @@
-module UI.Buttons (drawButtons) where
+module UI.Buttons
+  ( drawButtons
+  ) where
 
 import Brick
+import qualified Graphics.Vty as V
 import qualified Brick.Widgets.Border as B
-import Brick.Widgets.Core
 import qualified Brick.Widgets.Border.Style as BS
-import qualified Data.Text as T  -- Add this import
-
 import Game.Types
+
 import UI.Theme
 
 drawButtons :: UISelection -> Widget Name
@@ -18,6 +19,6 @@ drawButtons sel =
     B.borderWithLabel (str " Actions ") $
     padLeftRight 2 $
     hBox [ clickable PassButton $ withAttr passAttr $ str "[ Pass ]"
-         , str "     "  -- Changed txt to str
+         , str "     "
          , clickable ResignButton $ withAttr resignAttr $ str "[ Resign ]"
          ]

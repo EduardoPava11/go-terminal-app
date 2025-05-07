@@ -1,249 +1,176 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module UI.ConfigUI
   ( runConfigForm
-  , ConfigFormState(..)
+  , formStateToConfig
   ) where
 
 import Brick
-import qualified Brick.Forms as BF
+import qualified Brick.Main as B
+import qualified Brick.Forms as F
 import Brick.Widgets.Center as C
 import Brick.Widgets.Border as B
 import qualified Graphics.Vty as V
-import Lens.Micro ((^.))
-import Lens.Micro.TH (makeLenses)
-import Brick.Focus (focusRing, focusRingCursor)
-import Control.Monad (void, when)
+import qualified Graphics.Vty.CrossPlatform as CV
+import qualified Brick.BChan as BCh
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.State (get)
-
 import Data.Text (Text)
 import qualified Data.Text as T
 import Network.Config (NodeConfig(..), NodeMode(..), defaultConfig)
-import UI.Theme (theMap, selectedAttr, normalAttr)
-import System.Exit (exitSuccess)
-import Network.Socket (getAddrInfo, defaultHints, AddrInfo(..), AddrInfoFlag(..))
-import Network.Info (getNetworkInterfaces, NetworkInterface(..), IPv4(..))
-import Data.List (intercalate)
+import UI.Theme (theMap)
+import Lens.Micro (lens, Lens')
 
 -- Form field names
-data FormFieldName
-  = PortField
-  | HostField
-  | NodeIdField
+data FormFieldName 
+  = HostField
+  | PortField
   | ModeField
-  | ActivePeersField
-  | PassivePeersField
-  | FanoutField
+  | ActivPeersField
+  | PassivPeersField
   | VerboseField
   deriving (Show, Eq, Ord)
 
--- Form state with lenses
+-- Form state without lenses
 data ConfigFormState = ConfigFormState
-  { _cfgPort :: Int
-  , _cfgHost :: Text
-  , _cfgNodeId :: Text
-  , _cfgMode :: NodeMode
-  , _cfgActivePeers :: Int
-  , _cfgPassivePeers :: Int
-  , _cfgFanout :: Int
-  , _cfgVerbose :: Bool
-  } deriving (Show, Eq)
-
-makeLenses ''ConfigFormState
+  { cfHost           :: Text
+  , cfPort           :: Text
+  , cfMode           :: NodeMode
+  , cfMaxActivePeers :: Int
+  , cfMaxPassivePeers :: Int
+  , cfVerboseLogging :: Bool
+  } deriving (Show)
 
 -- Initialize form state from default config
 initialFormState :: IO ConfigFormState
 initialFormState = do
   let cfg = defaultConfig
-      port = read $ T.unpack $ last $ T.splitOn ":" (hostAddress cfg)
-  
-  -- Try to get the local IP address
-  localIPs <- getLocalIPAddresses
-  let hostname = case localIPs of
-                   [] -> T.pack "127.0.0.1"
-                   (ip:_) -> T.pack ip
-  
+      (host, port) = parseAddr (T.unpack $ hostAddress cfg)
   return $ ConfigFormState
-    { _cfgPort = port
-    , _cfgHost = hostname
-    , _cfgNodeId = T.pack "player1"
-    , _cfgMode = nodeMode cfg
-    , _cfgActivePeers = maxActivePeers cfg
-    , _cfgPassivePeers = maxPassivePeers cfg
-    , _cfgFanout = gossipFanout cfg
-    , _cfgVerbose = verboseLogging cfg
+    { cfHost = T.pack host
+    , cfPort = T.pack port
+    , cfMode = nodeMode cfg
+    , cfMaxActivePeers = maxActivePeers cfg
+    , cfMaxPassivePeers = maxPassivePeers cfg
+    , cfVerboseLogging = verboseLogging cfg
     }
 
--- Fixed version that works with Brick 0.70
-buildForm :: ConfigFormState -> BF.Form ConfigFormState e FormFieldName
-buildForm = BF.newForm
-  [ BF.editTextField cfgHost HostField (Just 1)
-  , BF.editShowableField cfgPort PortField
-  , BF.editTextField cfgNodeId NodeIdField (Just 1)
-  , BF.radioField cfgMode 
-      [(Gaming, ModeField, "Gaming (active player)")
-      ,(Spectating, ModeField, "Spectating (observer only)")
-      ,(Combined, ModeField, "Combined (both roles)")
+-- Build a form with explicit type annotations for compatibility
+buildForm :: ConfigFormState -> F.Form ConfigFormState e FormFieldName
+buildForm = F.newForm fields
+  where
+    fields = 
+      [ F.editTextField hostLens HostField (Just 1)
+      , F.editTextField portLens PortField (Just 1)  
+      , F.radioField modeLens
+          [(Gaming, ModeField, "Gaming")
+          ,(Spectating, ModeField, "Spectating")
+          ,(Combined, ModeField, "Combined")
+          ]
+      , F.editShowableField activePeersLens ActivPeersField
+      , F.editShowableField passivePeersLens PassivPeersField
+      , F.checkboxField verboseLogLens VerboseField "Enable verbose logging"
       ]
-  , BF.editShowableField cfgActivePeers ActivePeersField
-  , BF.editShowableField cfgPassivePeers PassivePeersField
-  , BF.editShowableField cfgFanout FanoutField
-  , BF.checkboxField cfgVerbose VerboseField "Enable"
-  ]
+    
+    -- Explicitly typed lenses for compatibility
+    hostLens :: Lens' ConfigFormState Text
+    hostLens = lens cfHost (\s t -> s { cfHost = t })
+    
+    portLens :: Lens' ConfigFormState Text
+    portLens = lens cfPort (\s t -> s { cfPort = t })
+    
+    modeLens :: Lens' ConfigFormState NodeMode
+    modeLens = lens cfMode (\s v -> s { cfMode = v })
+    
+    activePeersLens :: Lens' ConfigFormState Int
+    activePeersLens = lens cfMaxActivePeers (\s v -> s { cfMaxActivePeers = v })
+    
+    passivePeersLens :: Lens' ConfigFormState Int
+    passivePeersLens = lens cfMaxPassivePeers (\s v -> s { cfMaxPassivePeers = v })
+    
+    verboseLogLens :: Lens' ConfigFormState Bool
+    verboseLogLens = lens cfVerboseLogging (\s v -> s { cfVerboseLogging = v })
 
 -- Validate form inputs
-validateForm :: BF.Form ConfigFormState e FormFieldName -> (Bool, [String])
+validateForm :: F.Form ConfigFormState e FormFieldName -> (Bool, [String])
 validateForm form =
-  let state = BF.formState form
+  let state = F.formState form
+      portValid = case reads (T.unpack $ cfPort state) :: [(Int, String)] of
+                    [(p, "")] -> p > 0 && p < 65536
+                    _         -> False
       errors = concat
-        [ if state^.cfgPort <= 0 || state^.cfgPort > 65535
-            then ["Port must be between 1 and 65535"]
-            else []
-        , if T.null (state^.cfgHost)
-            then ["Host cannot be empty"]
-            else []
-        , if T.null (state^.cfgNodeId)
-            then ["Node ID cannot be empty"]
-            else []
-        , if state^.cfgActivePeers < 1
-            then ["Active peers must be at least 1"]
-            else []
-        , if state^.cfgPassivePeers < state^.cfgActivePeers
-            then ["Passive peers should not be less than active peers"]
-            else []
-        , if state^.cfgFanout < 1
-            then ["Fanout must be at least 1"]
-            else []
+        [ if T.null (cfHost state) then ["Host cannot be empty"] else []
+        , if not portValid then ["Port must be a number between 1-65535"] else []
         ]
   in (null errors, errors)
 
--- Custom form rendering with labels
--- Draw the form with nice borders and sections for Brick 0.70
-drawForm :: BF.Form ConfigFormState e FormFieldName -> [Widget FormFieldName]
+-- Draw the form with nice borders
+drawForm :: F.Form ConfigFormState e FormFieldName -> [Widget FormFieldName]
 drawForm form =
-  let (isValid, errors) = validateForm form
-      -- We'll use BF.renderForm which handles everything internally
-      formWidget = addFieldLabels $ BF.renderForm form
-
-      errorWidget = if isValid
-                    then emptyWidget
-                    else B.borderWithLabel (withAttr selectedAttr $ str "Validation Errors") $
-                         vBox $ map (withAttr selectedAttr . str . ("• " ++)) errors
-  in
-  [ C.center $
-      padAll 1 $
-        vBox
-          [ B.borderWithLabel (str "Terminal Go - Network Configuration") formWidget
-          , padTop (Pad 1) errorWidget
-          , padTop (Pad 1) $
-              withAttr selectedAttr $
-                str "Press [Enter] to confirm, [Esc] to quit"
-          ]
+  [ C.center $ B.borderWithLabel (str "Network Configuration") $ 
+    padAll 2 $ 
+    vBox [ F.renderForm form
+         , B.hBorder
+         , hBox [ padLeft (Pad 2) $ str "Press Enter to save, Esc to cancel" ]
+         ]
   ]
 
--- Helper function to add field labels
--- In Brick 0.70 we need to handle labels differently
-addFieldLabels :: Widget FormFieldName -> Widget FormFieldName
-addFieldLabels w = Widget Fixed Fixed $ do
-  ctx <- getContext
-  let fieldLabels = vBox 
-        [ withAttr normalAttr $ str "Host:"
-        , withAttr normalAttr $ str "Port:"
-        , withAttr normalAttr $ str "Node ID:"
-        , withAttr normalAttr $ str "Node Mode:"
-        , withAttr normalAttr $ str "Max Active Peers:"
-        , withAttr normalAttr $ str "Max Passive Peers:"
-        , withAttr normalAttr $ str "Gossip Fanout:"
-        , withAttr normalAttr $ str "Verbose Logging:"
-        ]
-  render $ hBox [padRight (Pad 2) fieldLabels, w]
-
--- Handle form events with correct signature
-handleConfigFormEvent :: (MonadIO m) => BF.Form ConfigFormState e FormFieldName -> 
-                         BrickEvent FormFieldName e -> 
-                         EventM FormFieldName (m (BF.Form ConfigFormState e FormFieldName))
-handleConfigFormEvent form ev = 
-  case ev of
-    VtyEvent (V.EvKey V.KEsc []) -> liftIO exitSuccess >> continue form
-    VtyEvent (V.EvKey V.KEnter []) ->
-      let (isValid, _) = validateForm form
-      in if isValid then halt form else continue form
-    _ -> do
-        newForm <- BF.handleFormEvent ev form
-        continue newForm
+-- Handle form events with the right type signature for Brick 2.3+
+formEventHandler :: BrickEvent FormFieldName e 
+                 -> EventM FormFieldName (F.Form ConfigFormState e FormFieldName) ()
+formEventHandler (VtyEvent (V.EvKey V.KEsc [])) = 
+  liftIO (putStrLn "Form canceled")
+formEventHandler (VtyEvent (V.EvKey V.KEnter [])) = do
+  form <- get
+  case validateForm form of
+    (True, _)  -> liftIO (putStrLn "Form submitted")
+    (False, _) -> return ()
+formEventHandler ev = F.handleFormEvent ev
 
 -- Convert the form state to a NodeConfig
 formStateToConfig :: ConfigFormState -> NodeConfig
-formStateToConfig state = NodeConfig
-  { maxActivePeers = state^.cfgActivePeers
-  , maxPassivePeers = state^.cfgPassivePeers
-  , shuffleInterval = 30.0  -- Default
-  , gossipFanout = state^.cfgFanout
-  , gossipEagerRatio = 0.5  -- Default
-  , messageTimeout = 2.0    -- Default
-  , nodeMode = state^.cfgMode
-  , hostAddress = T.concat [state^.cfgHost, ":", T.pack (show (state^.cfgPort))]
-  , nodeId = Just (state^.cfgNodeId)
-  , verboseLogging = state^.cfgVerbose
-  }
+formStateToConfig state =
+  let hostPort = T.unpack (cfHost state) <> ":" <> T.unpack (cfPort state)
+  in defaultConfig
+    { hostAddress = T.pack hostPort
+    , nodeMode = cfMode state
+    , maxActivePeers = cfMaxActivePeers state
+    , maxPassivePeers = cfMaxPassivePeers state
+    , verboseLogging = cfVerboseLogging state
+    }
 
 -- Run the config form and return the resulting NodeConfig
 runConfigForm :: IO NodeConfig
 runConfigForm = do
   initialState <- initialFormState
-  let buildAttrMap = const $ attrMap V.defAttr
-        [ (BF.formAttr, V.white `on` V.blue)
-        , (BF.invalidFormInputAttr, V.white `on` V.red)
-        , (BF.focusedFormInputAttr, V.black `on` V.yellow)
-        , (selectedAttr, V.withStyle (V.white `on` V.black) V.bold)
-        , (normalAttr, V.white `on` V.black)
-        ]
-      
-      formFocus = focusRing
-        [ HostField
-        , PortField
-        , NodeIdField
-        , ModeField
-        , ActivePeersField
-        , PassivePeersField
-        , FanoutField
-        , VerboseField
-        ]
-      
-      app = App
-        { appDraw = drawForm
-        , appHandleEvent = handleConfigFormEvent
-        , appChooseCursor = focusRingCursor (\_ -> formFocus)
-        , appStartEvent = pure
-        , appAttrMap = buildAttrMap
-        }
-        
-  let initialForm = buildForm initialState
   
-  -- Create Vty instance for customMain
-  vty <- V.mkVty V.defaultConfig
-  finalForm <- defaultMain app initialForm
+  -- Create a new BChan for events
+  chan <- BCh.newBChan 10
   
-  -- Get local IPs and display them
-  ips <- getLocalIPAddresses
-  let config = formStateToConfig (BF.formState finalForm)
-      hostPort = T.unpack (hostAddress config)
+  -- Create Vty using proper initialization for Vty 6.x
+  vty <- CV.mkVty V.defaultConfig
   
-  putStrLn "Configuration accepted!"
-  putStrLn $ "Your node is configured at: " ++ hostPort
+  let buildVty = CV.mkVty V.defaultConfig
   
-  when (length ips > 1) $ do
-    putStrLn "Local IP addresses detected:"
-    mapM_ (\ip -> putStrLn $ "  " ++ ip) ips
-    putStrLn $ "Others can connect to you using: [yourIP]:" ++ (T.unpack $ last $ T.splitOn ":" (hostAddress config))
-  
-  return config
+  -- Define app with proper Brick 2.3+ handler pattern
+  let app = configApp chan
+              
+  finalState <- B.customMain vty buildVty (Just chan) app (buildForm initialState)
+  return $ formStateToConfig (F.formState finalState)
 
--- Helper function to get local IP addresses
-getLocalIPAddresses :: IO [String]
-getLocalIPAddresses = do
-  interfaces <- getNetworkInterfaces
-  let ips = [show ip | iface <- interfaces, let IPv4 ip = ipv4 iface, ip /= 0]
-  return ips
+-- Define app with proper Brick 2.3+ handler pattern
+configApp :: BCh.BChan () -> App (F.Form ConfigFormState () FormFieldName) () FormFieldName
+configApp chan = App 
+  { appDraw = drawForm
+  , appChooseCursor = showFirstCursor
+  , appHandleEvent = formEventHandler
+  , appStartEvent = return ()
+  , appAttrMap = const theMap
+  }
+
+-- | Parse an address string in format "host:port" into a tuple (host, port)
+parseAddr :: String -> (String, String)
+parseAddr addr =
+  case break (==':') addr of
+    (host, ':':port) -> (host, port)
+    (host, _)        -> (host, "9001")  -- Default port

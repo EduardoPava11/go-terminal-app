@@ -2,7 +2,6 @@ module UI.Board (drawBoardWithCoords, drawCell, drawStone) where
 
 import Brick
 import qualified Brick.Widgets.Border as B
-import Brick.Widgets.Core
 import qualified Data.Vector as Vec
 import Data.Char (chr)
 
@@ -10,10 +9,10 @@ import Game.Types
 import UI.Theme (selectedAttr, cursorAttr)
 
 drawBoardWithCoords :: GameState -> UISelection -> (Int, Int) -> Widget Name
-drawBoardWithCoords gs sel cursor =
+drawBoardWithCoords gs sel curPos =
   let sz = boardSize gs
       colHeaders = hBox $ str "   " : [str $ "  " ++ [chr (c + 65)] ++ " " | c <- [0..sz-1]]
-      mkRow r = hBox $ str (rowLabel r) : [drawCell gs r c sel cursor | c <- [0..sz-1]]
+      mkRow r = hBox $ str (rowLabel r) : [drawCell gs r c sel curPos | c <- [0..sz-1]]
       boardRows = [mkRow r | r <- [0..sz-1]]
   in B.borderWithLabel (str " Go Board ") $ vBox (colHeaders : boardRows)
 
@@ -33,7 +32,7 @@ drawCell gs row col sel (curR, curC) =
                      else if isCursor
                           then withAttr cursorAttr cellWidget
                           else cellWidget
-  in clickable (BoardCell row col) styledWidget
+  in clickable (UIBoardCell row col) styledWidget
 
 drawStone :: Stone -> String
 drawStone Empty = "."

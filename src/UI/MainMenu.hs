@@ -5,19 +5,19 @@ module UI.MainMenu
   , handleMainMenuEvent
   , MainMenuState(..)
   , MainMenuSelection(..)
+  , MenuMode(..)
   ) where
 
 import Brick
-import Brick.Widgets.Core
+import Brick.Types (BrickEvent(..), EventM)
 import Brick.Widgets.Center as C
 import qualified Brick.Widgets.Border as B
-import qualified Brick.Widgets.Border.Style as BS
-import qualified Graphics.Vty as V
+import qualified Brick.Main as BM
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Graphics.Vty as V
 
-import Game.Types (Name(..))
-import UI.Theme
+import UI.Theme (selectedAttr, normalAttr)
 
 -- Main menu options
 data MainMenuSelection
@@ -32,7 +32,11 @@ data MainMenuState = MainMenuState
   { menuSelection :: MainMenuSelection
   , gameCode :: Maybe Text  -- For join game option
   , joinError :: Maybe Text  -- Error message when joining fails
+  , menuMode :: MenuMode    -- Track if exiting
   }
+
+data MenuMode = Normal | Exiting
+  deriving (Eq, Show)
 
 -- Names for menu widgets
 data MainMenuName
@@ -49,6 +53,7 @@ initialMainMenuState = MainMenuState
   { menuSelection = CreateGameOption
   , gameCode = Nothing
   , joinError = Nothing
+  , menuMode = Normal
   }
 
 -- Draw the main menu
@@ -92,59 +97,60 @@ drawGameCodeInput :: Maybe Text -> Widget MainMenuName
 drawGameCodeInput Nothing = str "No code entered yet"
 drawGameCodeInput (Just code) = str $ "Code: " ++ T.unpack code
 
--- Handle menu events
-handleMainMenuEvent :: MainMenuState -> BrickEvent MainMenuName e -> EventM MainMenuName (Next MainMenuState)
--- Arrow keys
-handleMainMenuEvent s (VtyEvent (V.EvKey V.KUp [])) =
-  continue $ s { menuSelection = prevOption (menuSelection s) }
-handleMainMenuEvent s (VtyEvent (V.EvKey V.KDown [])) =
-  continue $ s { menuSelection = nextOption (menuSelection s) }
+-- Handle menu events with event-first signature for Brick 2.3+
+handleMainMenuEvent :: BrickEvent MainMenuName e -> MainMenuState -> EventM MainMenuName e MainMenuState
+-- Arrow key navigation
+handleMainMenuEvent (VtyEvent (V.EvKey V.KUp [])) s =
+  return $ s { menuSelection = prevOption (menuSelection s) }
+handleMainMenuEvent (VtyEvent (V.EvKey V.KDown [])) s =
+  return $ s { menuSelection = nextOption (menuSelection s) }
 
--- Enter key
-handleMainMenuEvent s (VtyEvent (V.EvKey V.KEnter [])) =
+-- Enter key handler for menu options
+handleMainMenuEvent (VtyEvent (V.EvKey V.KEnter [])) s =
   case menuSelection s of
-    CreateGameOption -> suspendAndResume $ do
-      -- Logic to create a new game
+    CreateGameOption -> 
       return s
+    
     JoinGameOption -> 
       case gameCode s of
-        Nothing -> continue $ s { joinError = Just "Please enter a game code" }
-        Just _ -> suspendAndResume $ do
-          -- Logic to join a game
+        Nothing -> return $ s { joinError = Just "Please enter a game code" }
+        Just _ -> 
           return s
-    LocalGameOption -> suspendAndResume $ do
-      -- Logic to start a local game
+    
+    LocalGameOption -> 
       return s
-    QuitOption -> halt s
+      
+    QuitOption -> 
+      return $ s { menuMode = Exiting }
 
 -- Mouse clicks
-handleMainMenuEvent s (MouseDown CreateButton _ _ _) =
-  continue $ s { menuSelection = CreateGameOption }
-handleMainMenuEvent s (MouseDown JoinButton _ _ _) =
-  continue $ s { menuSelection = JoinGameOption }
-handleMainMenuEvent s (MouseDown LocalButton _ _ _) =
-  continue $ s { menuSelection = LocalGameOption }
-handleMainMenuEvent s (MouseDown QuitButton _ _ _) =
-  continue $ s { menuSelection = QuitOption }
+handleMainMenuEvent (MouseDown CreateButton _ _ _) s =
+  return $ s { menuSelection = CreateGameOption }
+handleMainMenuEvent (MouseDown JoinButton _ _ _) s =
+  return $ s { menuSelection = JoinGameOption }
+handleMainMenuEvent (MouseDown LocalButton _ _ _) s =
+  return $ s { menuSelection = LocalGameOption }
+handleMainMenuEvent (MouseDown QuitButton _ _ _) s =
+  return $ s { menuSelection = QuitOption }
 
 -- Game code input (simplified)
-handleMainMenuEvent s (VtyEvent (V.EvKey (V.KChar c) [])) =
+handleMainMenuEvent (VtyEvent (V.EvKey (V.KChar c) [])) s =
   case menuSelection s of
     JoinGameOption -> 
       let newCode = maybe (T.singleton c) (`T.append` T.singleton c) (gameCode s)
-      in continue $ s { gameCode = Just newCode, joinError = Nothing }
-    _ -> continue s
+      in return $ s { gameCode = Just newCode, joinError = Nothing }
+    _ -> return s
 
 -- Backspace to delete characters from game code
-handleMainMenuEvent s (VtyEvent (V.EvKey V.KBS [])) =
+handleMainMenuEvent (VtyEvent (V.EvKey V.KBS [])) s =
   case menuSelection s of
     JoinGameOption ->
       let newCode = fmap (\t -> if T.null t then t else T.init t) (gameCode s)
-      in continue $ s { gameCode = if maybe True T.null newCode then Nothing else newCode }
-    _ -> continue s
+      in return $ s { gameCode = if maybe True T.null newCode then Nothing else newCode }
+    _ -> return s
 
 -- Default
-handleMainMenuEvent s _ = continue s
+handleMainMenuEvent _ s = return s
 
 -- Get the next menu option
 nextOption :: MainMenuSelection -> MainMenuSelection

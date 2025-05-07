@@ -1,44 +1,40 @@
 module UI.Theme 
-  ( selectedAttr
+  ( theMap
+  , selectedAttr
   , normalAttr
   , cursorAttr
-  , networkStatusAttr
-  , networkConnectedAttr
-  , networkErrorAttr
-  , theMap
-  , unicodeBold
+  , networkAttr
+  , peerListAttr
+  , activePeerAttr
+  , errorAttr
   , connectionInfoAttr
-  , networkCreatingAttr
   ) where
 
 import Brick
+import Brick.Widgets.Border (borderAttr)
 import qualified Graphics.Vty as V
-import qualified Brick.Widgets.Border.Style as BS
 
--- Export the unicodeBold style
-unicodeBold :: BS.BorderStyle
-unicodeBold = BS.unicodeBold
-
-selectedAttr, normalAttr, cursorAttr :: AttrName
+-- Define attribute names
+selectedAttr, normalAttr, cursorAttr, networkAttr, peerListAttr, activePeerAttr, errorAttr, connectionInfoAttr :: AttrName
 selectedAttr = attrName "selected"
 normalAttr = attrName "normal"
 cursorAttr = attrName "cursor"
-
-networkStatusAttr, networkConnectedAttr, networkErrorAttr, connectionInfoAttr, networkCreatingAttr :: AttrName
-networkStatusAttr = attrName "networkStatus"
-networkConnectedAttr = attrName "networkConnected"
-networkErrorAttr = attrName "networkError"
+networkAttr = attrName "network"
+peerListAttr = attrName "peerList"
+activePeerAttr = attrName "activePeer"
+errorAttr = attrName "error"
 connectionInfoAttr = attrName "connectionInfo"
-networkCreatingAttr = attrName "networkCreating"
 
+-- Define the attribute map
 theMap :: AttrMap
 theMap = attrMap V.defAttr
-  [ (selectedAttr, V.withForeColor V.defAttr V.red)
-  , (normalAttr, V.withForeColor V.defAttr V.white)
-  , (cursorAttr, V.withBackColor V.defAttr V.blue)
-  , (networkStatusAttr, V.withForeColor V.defAttr V.yellow)
-  , (networkConnectedAttr, V.withForeColor V.defAttr V.green)
-  , (networkErrorAttr, V.withStyle (V.withForeColor V.defAttr V.red) V.bold)
-  , (connectionInfoAttr, V.withStyle (V.withForeColor V.defAttr V.cyan) V.bold)
-  , (networkCreatingAttr, V.withForeColor V.defAttr V.magenta)
+  [ (selectedAttr, V.black `on` V.yellow)
+  , (normalAttr, fg V.white)
+  , (cursorAttr, V.black `on` V.cyan)
+  , (borderAttr, fg V.white)
+  , (networkAttr, fg V.green)
+  , (peerListAttr, fg V.blue)
+  , (activePeerAttr, V.black `on` V.green)
+  , (errorAttr, fg V.red)
+  , (connectionInfoAttr, fg V.cyan)
   ]
